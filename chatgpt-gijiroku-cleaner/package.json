@@ -1,0 +1,16 @@
+{
+  "name": "chatgpt-gijiroku-cleaner",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "preview": "zenn preview --port 3004",
+    "new": "zenn new:article"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "zenn-cli": "^0.4.7"
+  }
+}

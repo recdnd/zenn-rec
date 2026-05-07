@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ChatGPTで生成した議事録の空行・重複・全角スペースを毎回手で直していませんか？決定論的なテキスト整形パイプライン kiln を使った業務効率化の実例を紹介します。" />
+    <meta name="keywords" content="ChatGPT 議事録, 議事録 整形, 業務効率化, テキスト整形, AI 出力 整形, PDF コピペ 改行, 重複行 削除, kiln" />
+    <link rel="canonical" href="https://kiln.ooo/articles/ja/chatgpt-gijiroku-cleaner/" />
+    <meta property="og:title" content="ChatGPT議事録の出力を一瞬で整える方法 — 決定論的テキスト整形のすすめ" />
+    <meta property="og:description" content="ChatGPT議事録の後処理を自動化する具体的な方法と実例。" />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://kiln.ooo/articles/ja/chatgpt-gijiroku-cleaner/" />
+    <meta property="og:image" content="https://kiln.ooo/utilities/twitter-card.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicons/kiln-favicons/favicon-16x16.png" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicons/kiln-favicons/favicon-32x32.png" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/x-icon" href="/favicons/kiln-favicons/favicon.ico" media="(prefers-color-scheme: light)" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicons/kiln-favicons/apple-touch-icon.png" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicons/kiln-white-favicons/favicon-16x16.png" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicons/kiln-white-favicons/favicon-32x32.png" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/x-icon" href="/favicons/kiln-white-favicons/favicon.ico" media="(prefers-color-scheme: dark)" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicons/kiln-white-favicons/apple-touch-icon.png" media="(prefers-color-scheme: dark)" />
+    <link rel="manifest" href="/favicons/kiln-favicons/site.webmanifest" />
+    <title>ChatGPT議事録の出力を一瞬で整える方法 — kiln</title>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "ChatGPT議事録の出力を一瞬で整える方法 — 決定論的テキスト整形のすすめ",
+  "description": "ChatGPT議事録の後処理を自動化する具体的な方法と実例。",
+  "author": { "@type": "Organization", "name": "kiln" },
+  "publisher": { "@type": "Organization", "name": "kiln" },
+  "datePublished": "2026-05-03",
+  "inLanguage": "ja",
+  "mainEntityOfPage": "https://kiln.ooo/articles/ja/chatgpt-gijiroku-cleaner/"
+}
+    </script>
+  </head>
+  <body class="docs-page">
+    <p class="articles-back" style="font-size:11px;color:#888;"><a href="/articles/" style="color:inherit;">← articles</a></p>
+
+    <h1>ChatGPT議事録の出力を一瞬で整える方法 — 決定論的テキスト整形のすすめ</h1>
+    <p style="color:#888;font-size:11px;margin:0 0 1.5rem;"><time datetime="2026-05-03">2026年5月3日</time> · 業務効率化 / ChatGPT / 議事録</p>
+
+    <section>
+      <h2>はじめに</h2>
+      <p>社内会議の議事録を ChatGPT に整理してもらう運用、最近めちゃくちゃ増えてきたと思います。文字起こし → ChatGPT で要約・整形 → Notion / 共有ドキュメントに貼り付け、という流れで毎日やっている方も多いはず。</p>
+      <p>ただ、これ毎日やってる人なら絶対共感してもらえると思うんですが —— <strong>ChatGPT の出力って、地味に "汚い" んですよね</strong>。</p>
+      <ul>
+        <li>謎の空行が 2〜3 行入る</li>
+        <li>箇条書きの記号がバラバラ（<code>-</code> と <code>・</code> と <code>*</code> が混在、たまに <code>- •</code> みたいな崩れも）</li>
+        <li>同じ内容の文が微妙に表現を変えて重複してる</li>
+        <li>なぜかコピペすると全角スペースが混入してる</li>
+      </ul>
+      <p>毎回これを手で直すの、ぶっちゃけ「議事録を整える時間」のほうが「会議の中身を読む時間」より長くなってる日があります。本記事では、この後処理を自動化するアプローチと、実際の業務での使い方を紹介します。</p>
+    </section>
+
+    <section>
+      <h2>既存の方法で解決できなかった理由</h2>
+      <p>最初は VS Code の正規表現置換と <code>sed</code> ワンライナーで頑張る方が多いと思います。が、すぐ限界がきます。理由は単純で、<strong>汚れ方のパターンが多すぎる</strong>から。一つの正規表現を増やすと、別のケースが壊れる。会議資料には日本語・英語・コード・URL・数式が混ざるので、「全部に効くルール」を 1 行で書くのが現実的に無理です。</p>
+      <p>LLM（ChatGPT に「整形して」と頼む）もダメでした。理由は 2 つ：</p>
+      <ol>
+        <li><strong>再現性がない</strong> — 同じ入力でも毎回少しずつ違う出力になる</li>
+        <li><strong>勝手に内容を改変する</strong> — 「整形だけして」と頼んだのに要約まで始めることがある</li>
+      </ol>
+      <p>業務で使うなら、<strong>入力 X に対して出力 Y が常に一意に定まる "決定論的" な処理</strong>じゃないとダメだなというのが出発点です。</p>
+    </section>
+
+    <section>
+      <h2>設計：小さなモジュールのパイプライン</h2>
+      <p>ちなみにここから "モジュール" とか "パイプライン" って単語が出てきますが、UI 用語というより、TeX や Unix pipe あたりの古典的な意味のほうで使ってます。詳しくは末尾の「観察可能な決定論的パイプライン」で。</p>
+      <p>kiln は、こういう構成になっています。</p>
+      <pre>入力 → parse → normalize → transform → render → 出力</pre>
+      <p>各ステップは独立した小さなモジュール。代表的なものは以下です。</p>
+      <ul>
+        <li><strong>boiler</strong> — ヘッダー / フッター / ノイズ行の除去</li>
+        <li><strong>pageNoiseStrip</strong> — ページ番号・改ページ由来のノイズ行を除去</li>
+        <li><strong>joinlines</strong> — PDF 由来の不自然な改行を結合</li>
+        <li><strong>punct</strong> — 句読点・全半角スペースの正規化</li>
+        <li><strong>dedupe</strong> — 重複行 / 重複文の検出と削除</li>
+        <li><strong>limit</strong> — 文字数 / 文 / 段落単位の上限を適用</li>
+        <li><strong>trimmax</strong> — 連続する空行を最大 N 行に圧縮</li>
+        <li><strong>commaspacing</strong> — 句読点周りのスペース整形</li>
+      </ul>
+      <p>3 つのプリセットを用意していて、ほとんどの場合これで足ります：</p>
+      <ul>
+        <li><strong>clean</strong> — 軽い整形（議事録・社内資料向け）</li>
+        <li><strong>notes</strong> — メモや箇条書きの構造を保ったまま整形</li>
+        <li><strong>strong</strong> — 容赦ない正規化（PDF 抽出・論文の本気の清書）</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>実例 1：ChatGPT 議事録の整形</h2>
+      <p>ChatGPT が出してくる典型的な汚れ：</p>
+      <pre>- 議題1: Q3 売上について
+
+
+- 議題1: Q3 売上について
+* 田中さんから報告がありました。
+
+
+  目標達成率は 102% です ​。
+
+- 議題2: 新規プロダクトの進捗</pre>
+      <p><code>clean</code> プリセットを通すとこうなります：</p>
+      <pre>- 議題1: Q3 売上について
+  - 田中さんから報告がありました。
+  - 目標達成率は 102% です。
+- 議題2: 新規プロダクトの進捗</pre>
+      <p>重複行が消え、箇条書き記号が統一され、変な空行と全角スペースが消える。<strong>議事録の整形時間が 5 分 → 5 秒</strong>になります。</p>
+    </section>
+
+    <section>
+      <h2>実例 2：AI 出力の "bullet sludge" cleanup</h2>
+      <p>ChatGPT や Claude の出力をそのまま貼ると、たまにこういう謎の bullet 崩れが混ざります：</p>
+      <pre>- • ripgrep
+• - jq
+* • sed
+- duplicated line
+- duplicated line</pre>
+      <p>Markdown に貼ると微妙に読みにくいし、Notion や Slack に持っていくとさらに崩れることがあります。</p>
+      <p><code>clean</code> プリセットを通すと：</p>
+      <pre>- ripgrep
+- jq
+- sed
+- duplicated line</pre>
+      <p><strong>重複した bullet 記号が整理されて、同じ行の連続もきれいに潰されます</strong>。</p>
+      <p>この辺、見た目はかなり地味なんですが、AI 出力を毎日コピペしていると永遠に発生するタイプのノイズなので、意外と効きます。</p>
+      <p class="docs-see-also">関連: <a href="/ja/clean-ai-output/">AI 出力テキストをすぐに整える</a></p>
+    </section>
+
+    <section>
+      <h2>実例 3：重複行の一括削除</h2>
+      <p>複数人の議論ログを ChatGPT にまとめてもらうと、同じフレーズが微妙に違う表現で繰り返されることがあります。<code>dedupe</code> モジュールが効くケース：</p>
+      <pre>- 期日は来週金曜です
+- スケジュール再確認
+- 期日は来週金曜
+- 担当: 山田さん
+- 期日は 来週金曜</pre>
+      <p>↓</p>
+      <pre>- 期日は来週金曜です
+- スケジュール再確認
+- 担当: 山田さん</pre>
+      <p>完全一致だけでなく、<strong>句読点や前後スペースの違いを正規化した上で重複判定</strong>しているので、人手で書かれた "微妙に違う重複" もちゃんと拾います。</p>
+      <p class="docs-see-also">関連: <a href="/ja/clean-duplicate-lines/">重複行の削除</a></p>
+    </section>
+
+    <section>
+      <h2>観察可能な決定論的パイプライン</h2>
+      <p>ここまで「便利な整形ツール」みたいな紹介をしてきましたが、kiln の設計はもうちょっと奥にあります。</p>
+      <p>kiln は実装的には <strong>TeX / Unix pipe / compiler pass pipeline</strong> の系譜にあるツールです。AI ラッパーや SaaS formatter ではなく、<strong>テキストに対して決定論的な atomic operation を直列に適用する transformation system</strong> として作ってます。</p>
+      <pre>text → op → op → op → output</pre>
+      <p><code>punct</code>、<code>bullet-normalize</code>、<code>dedupe</code>、<code>trimmax</code> といったモジュールは「機能ボタン」ではなく、テキストに変換を施す atomic op です。それが固定された順序で適用される。</p>
+      <p>ブラウザのコンソールを開きながら kiln を動かすと、<code>modules/index.js</code> のこの 1 行：</p>
+      <pre>console.log(`[PIPELINE:${stage}] ${mod.name} ${changed ? "✓" : "-"}`);</pre>
+      <p>から、こういうトレースが流れます：</p>
+      <pre>[PIPELINE:state] {bullet-normalize: true, dedupe: true, ...}
+[PIPELINE:parse] line-parse
+[PIPELINE:normalize] unicode-normalize ✓
+[PIPELINE:normalize] linebreak-normalize -
+[PIPELINE:normalize] invisible-char-strip ✓
+[PIPELINE:normalize] bullet-normalize ✓
+[PIPELINE:transform] page-noise-strip -
+[PIPELINE:transform] dedupe ✓
+[PIPELINE:transform] dropempty -</pre>
+      <p><code>✓</code> = このモジュールが実際にテキストを変えた / <code>-</code> = 走ったが変えなかった。</p>
+      <p>これは debug toy ではなく、<strong>execution observability</strong> という第一級の性質として置いています。compiler の pass trace、ffmpeg の filter chain、build system のステップログ — ああいうレイヤーと同じ意図のものです。</p>
+      <p>そうしておくと、たとえば「重複行が消えなかった」と言われたときに：</p>
+      <ul>
+        <li><code>dedupe ✓</code> 出てるけど一部残ってる → 比較ロジックの問題</li>
+        <li><code>dedupe -</code> が出てる → モジュールは走ったが何も検出しなかった</li>
+        <li>そもそも <code>dedupe</code> が出てない → state が off、もしくは bypass パスに乗ってる</li>
+      </ul>
+      <p><strong>事象がどの層で起きたかが trace から特定できる</strong>。「LLM に頼んだら何かいい感じになった/ならなかった」という不可説明な世界とは、そもそも違うレイヤーで動いてます。</p>
+      <table style="border-collapse:collapse;margin:1rem 0;">
+        <thead><tr><th style="border:1px solid #ccc;padding:4px 10px;"></th><th style="border:1px solid #ccc;padding:4px 10px;">AI ラッパー</th><th style="border:1px solid #ccc;padding:4px 10px;">kiln</th></tr></thead>
+        <tbody>
+          <tr><td style="border:1px solid #ccc;padding:4px 10px;">出力</td><td style="border:1px solid #ccc;padding:4px 10px;">stochastic</td><td style="border:1px solid #ccc;padding:4px 10px;">deterministic</td></tr>
+          <tr><td style="border:1px solid #ccc;padding:4px 10px;">内部</td><td style="border:1px solid #ccc;padding:4px 10px;">opaque</td><td style="border:1px solid #ccc;padding:4px 10px;">observable</td></tr>
+          <tr><td style="border:1px solid #ccc;padding:4px 10px;">失敗時</td><td style="border:1px solid #ccc;padding:4px 10px;">"trust me"</td><td style="border:1px solid #ccc;padding:4px 10px;">pipeline trace</td></tr>
+          <tr><td style="border:1px solid #ccc;padding:4px 10px;">系譜</td><td style="border:1px solid #ccc;padding:4px 10px;">LLM API</td><td style="border:1px solid #ccc;padding:4px 10px;">TeX / Unix pipe / compiler</td></tr>
+        </tbody>
+      </table>
+      <p><strong>predictability > intelligence</strong> — これが kiln の核にある preference。AI を入れて「なんとなくいい感じ」にする方向ではなく、explicit な op を直列に走らせて inspectable な結果を出す方向です。地味ですが、業務の "配管" 層には、地味であることが効きます。</p>
+    </section>
+
+    <section>
+      <h2>まとめ</h2>
+      <ul>
+        <li>ChatGPT 出力 / PDF コピペ / 重複行 — どれも「機械的に正規化できる問題」</li>
+        <li>LLM ではなく <strong>決定論的なパイプライン</strong> で処理する方が業務には合う</li>
+        <li>モジュールを組み合わせる形にすると、ケースが増えても拡張しやすい</li>
+      </ul>
+      <p>ツールはこちらで触れます（ブラウザ完結、登録不要、無料）：</p>
+      <p>🔥 <a href="/"><strong>kiln — テキスト整形ツール</strong></a></p>
+    </section>
+
+    <p class="docs-related">
+      <a href="/articles/">← articles</a> · <a href="/">app</a> · <a href="/docs/overview/">docs</a> · <a href="/ja/clean-ai-output/">AI出力整形</a> · <a href="/ja/pdf-to-text/">PDF整形</a> · <a href="/ja/remove-blank-lines/">空行削除</a>
+    </p>
+  </body>
+</html>
