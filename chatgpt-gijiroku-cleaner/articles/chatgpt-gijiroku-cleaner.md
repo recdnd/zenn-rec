@@ -1,6 +1,6 @@
 ---
 title: "ChatGPT議事録の出力、毎回手で整形してませんか？"
-emoji: "🌀"
+emoji: "🔥"
 type: "tech"
 topics: ["chatgpt", "productivity", "text-processing", "workflow"]
 published: true
