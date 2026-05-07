@@ -1,5 +1,5 @@
 ---
-title: "ChatGPT議事録の出力、毎回手で整形してませんか？"
+title: "ChatGPT議事録、毎回手で整形してませんか？ ブラウザで観察可能な決定論的text-cleanup pipelineを実装した"
 emoji: "🔥"
 type: "tech"
 topics: ["chatgpt", "productivity", "text-processing", "workflow"]
